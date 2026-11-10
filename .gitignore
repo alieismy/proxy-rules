@@ -1,0 +1,16 @@
+# 本地配置、凭据与生成结果
+/.tmp/
+/local/
+/private/
+.env
+.env.*
+*.log
+*.bak
+*.zip
+
+# 开发工具与操作系统
+node_modules/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
