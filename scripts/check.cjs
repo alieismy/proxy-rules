@@ -52,6 +52,10 @@ for (const file of files) {
     const targets = new Set(["DIRECT", "REJECT", "REJECT-DROP", "PASS", ...names,
       ...(fixture.proxies || []).map(item => item.name)]);
     for (const group of groups) {
+      // 自动组用显式空组回退；其余组必须保留不依赖订阅过滤的静态候选。
+      assert(group["empty-fallback"] === "REJECT" ||
+        (group.proxies?.length > 0 && !group["exclude-filter"] && !group["exclude-type"]),
+        `${file}: missing empty-group protection in ${group.name}`);
       for (const name of group.proxies || []) {
         assert(targets.has(name), `${file}: unresolved group member ${name}`);
       }
@@ -118,7 +122,8 @@ for (const file of files) {
     }
     assert(out.rules.includes("DOMAIN-SUFFIX,onedrive.live.com,节点选择"), file);
     assert(!out.rules.includes("DOMAIN-SUFFIX,onedrive.live.com,DIRECT"), file);
-    assert(Array.isArray(out.dns["nameserver-policy"]["+.onedrive.live.com"]), file);
+    assert.deepEqual(out.dns["nameserver-policy"]["+.onedrive.live.com"],
+      ["https://1.1.1.1/dns-query", "https://8.8.8.8/dns-query"], file);
     assert(!Object.hasOwn(out.dns, "strategy"), file);
     // 明确排除的分流策略不能借通用同步混入。
     for (const domain of ["apps.apple.com", "itunes.apple.com", "oracle.com", "oraclecloud.com"]) {
@@ -159,7 +164,26 @@ for (const file of files) {
       assert(!accepts(phone, "DE-EUGameHost-01"), file);
       assert(!accepts(phone, "UK-剩余流量-01"), file);
       // 覆盖八个活动 profile 的两种源地址范围，保证通用同步不影响端口保护。
-      const definitions = evaluate(source, {}, "VOWIFI_PROFILE_DEFINITIONS");
+      // 预期契约独立于被测定义，防止改错 profile 后测试随之改变预期。
+      const definitions = {
+        OFF: { country: null, target: null },
+        UK_DIRECT: { country: "UK", target: "DIRECT" },
+        UK_PROXY: { country: "UK", target: "📞 UK VoWiFi（手动候选）" },
+        DE_DIRECT: { country: "DE", target: "DIRECT" },
+        DE_PROXY: { country: "DE", target: "📞 DE VoWiFi Proxy（手动候选）" },
+        VODAFONE_DE_DIRECT: { country: "VODAFONE_DE", target: "DIRECT" },
+        VODAFONE_DE_PROXY: { country: "VODAFONE_DE", target: "📞 Vodafone-DE VoWiFi（手动候选）" },
+        US_DIRECT: { country: "US", target: "DIRECT" },
+        US_PROXY: { country: "US", target: "📞 US VoWiFi Proxy（手动候选）" }
+      };
+      assert.deepEqual(evaluate(source, {}, "VOWIFI_PROFILE_DEFINITIONS"), definitions, file);
+      // 各国代表域名同时核对路由、DNS 和 fake-IP 排除，含未激活国家的 DIRECT。
+      const countryDomains = {
+        UK: "epdg.epc.mnc015.mcc234.pub.3gppnetwork.org",
+        DE: "epdg.epc.mnc001.mcc262.pub.3gppnetwork.org",
+        VODAFONE_DE: epdg,
+        US: "epdg.epc.mnc260.mcc310.pub.3gppnetwork.org"
+      };
       for (const [profile, definition] of Object.entries(definitions)) {
         if (profile === "OFF") continue;
         for (const scope of ["SOURCE_IPS_REQUIRED", "ALL_TUN_CLIENTS"]) {
@@ -177,6 +201,15 @@ for (const file of files) {
           });
           assert.deepEqual(portRules, expected, `${profile}: ${scope}`);
           assert.deepEqual(active.rules.slice(0, expected.length), expected, `${profile}: priority`);
+          assert(active.dns["fake-ip-filter"].includes("+.3gppnetwork.org"), `${profile}: ePDG fake-IP`);
+          for (const [country, domain] of Object.entries(countryDomains)) {
+            const target = definition.country === country ? definition.target : "DIRECT";
+            assert.equal(active.rules.find(rule => rule.startsWith(`DOMAIN,${domain},`)),
+              `DOMAIN,${domain},${target}`, `${profile}: ${domain}`);
+            assert.deepEqual(active.dns["nameserver-policy"][domain],
+              ["https://1.1.1.1/dns-query", "https://8.8.8.8/dns-query"].map(server => `${server}#${target}`),
+              `${profile}: DNS ${domain}`);
+          }
         }
       }
       const missingSource = source.replace('const VOWIFI_ACTIVE_PROFILE = "OFF";',
