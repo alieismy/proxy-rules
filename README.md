@@ -29,15 +29,21 @@
 
 现有客户端脚本保留各自的平台差异及分流策略，包括关闭 IPv6、设置代理节点 UDP 标志等。节点的 `udp: true` 不能证明上游 UDP 可用。WiFi Calling 文件基于 Sparkle / Mihomo，尚未作为 iOS 客户端原生规则适配。
 
+DNS 监听范围也有差异：Clash Verge Rev 版生成 `0.0.0.0:1053`，其余五份生成 `127.0.0.1:1053`。前者请求监听所有 IPv4 接口，实际能否从其他设备访问仍取决于最终配置、核心监听和系统防火墙；导入前应确认这符合所需的 DNS 访问范围。
+
 ## WiFi Calling 版本区别
 
 | 文件 | 源码中的默认行为与用途 |
 | --- | --- |
-| `uk.js` | 早期英国版本，同时含 Vodafone DE 实验路径；会注入固定 ePDG hosts，使用前需检查该行为。 |
-| `uk-de.js` | 英国 / 德国分层版本；Vodafone DE 固定地址回退开关默认 `false`。 |
-| `uk-de-us.js` | 包含英国 / 德国 / 美国 profile；`VOWIFI_ACTIVE_PROFILE` 默认 `OFF`，不生成 UDP 500/4500 接管规则。代理候选组默认首项为 `REJECT`。 |
+| `uk.js` | 加载后即把 UK / Vodafone DE 的 ePDG 送入对应策略组，组首项分别为自动 UK / DE；并注入 Vodafone DE 固定 hosts 和对应 IP 规则。没有统一版的 `OFF` 开关。 |
+| `uk-de.js` | UK / Vodafone DE 的 ePDG 同样进入对应策略组，组首项分别为自动 UK / DE；普通 DE 组首项为 `DIRECT`。固定地址回退开关默认 `false`，仅关闭该 hosts / IP 回退，不关闭上述域名分流，也不清除输入配置已有的 hosts。 |
+| `uk-de-us.js` | `VOWIFI_ACTIVE_PROFILE` 默认 `OFF`：脚本列出的 ePDG DNS 出口和域名规则使用 `DIRECT`，不生成 UDP 500/4500 接管规则，也不新增固定 ePDG hosts。四个 VoWiFi 手动候选组首项为 `REJECT`。`OFF` 不停用通用覆写，也不清除输入配置已有的 hosts。 |
 
-三个版本保留原有行为，不能只按文件名中的国家范围互换。统一版的 profile、源地址范围与启用步骤见其文件开头注释。WiFi Calling 是否成功仍需要手机流量路径、节点 UDP、运营商条件和 IMS 注册、通话、短信等实际验证。
+表中“组首项”是生成配置中的顺序；脚本启用了 `store-selected`，客户端保存的历史选择可能继续生效，应用后须核对实际选择。
+
+三个版本保留原有行为，不能只按文件名中的国家范围互换，也不能按版本号认定统一版包含普通 Sparkle 版的全部更新。统一版文件头注明通用基线为 Sparkle v16.4；当前三个客户端版的自动测速组都显式设置了 `empty-fallback: REJECT`，三个 WiFi Calling 版的自动测速组均未设置该项。统一版的 VoWiFi 手动候选组保护不等于所有策略组都有相同保护。
+
+统一版的 profile、源地址范围与启用步骤见其文件开头注释。WiFi Calling 是否成功仍需要手机流量路径、节点 UDP、运营商条件和 IMS 注册、通话、短信等实际验证。
 
 脚本中的客户端版本、运营商政策、DNS 观测、历史测试结果和故障归因是原文件携带的记录。本次导入没有重新核验这些历史主张，也没有进行客户端部署、核心运行或 WiFi Calling 业务验收。
 
@@ -55,6 +61,8 @@ scenarios/
     uk-de-us.js
 docs/
   initial-import.md
+scripts/
+  check.cjs
 ```
 
 - 客户端专用内容放在 `clients/<client>/`。未来 iOS 客户端也按实际软件和格式分目录，例如 `clients/surge/`、`clients/shadowrocket/`；有内容时再创建。
@@ -66,6 +74,16 @@ docs/
 ## 导入、来源与验证
 
 [首次导入记录](docs/initial-import.md) 列出原文件名、目标路径、SHA-256 与本次验证范围。六份脚本按当前工作文件逐字节导入，保留原编码、换行和注释；未导入源目录的 Git 历史、备份、日志、参考资料或开发工具状态。
+
+原脚本保留了历史 SSH 管理规则的变更注释；当前三个客户端版本没有这些私人地址的 SSH 直连例外，应以实际规则为准。
+
+安装 Node.js 后，在仓库根目录运行：
+
+```sh
+node scripts/check.cjs
+```
+
+检查不需要安装 npm 依赖、不访问网络、不读入个人配置，也不写出生成配置。它复查六份脚本的语法、18 组配置生成、6 组空输入拒绝、规则引用，以及上文所列的 DNS 监听和 WiFi Calling 默认行为；本次使用 Node.js v24.22.1 通过。它不检查外部规则可达性，也不能替代客户端引擎、Mihomo 核心及实际网络验收。原文件字节同一性和发布内容的敏感信息检查属于首次导入审计，不由这个配置检查命令证明。
 
 脚本引用的外部规则及图标包括 Loyalsoldier、Sukka、blackmatrix7 和 Clash Verge Rev 等项目；具体 URL 保留在各文件中，规则加载仍依赖这些外部来源。本次未打包外部规则，也未更改其来源。
 

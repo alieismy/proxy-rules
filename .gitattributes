@@ -1,5 +1,6 @@
 # 首次导入保留既有脚本字节与换行；不自动转换 JS。
 *.js -text
+*.cjs text eol=lf
 *.md text eol=lf
 .gitignore text eol=lf
 .gitattributes text eol=lf
