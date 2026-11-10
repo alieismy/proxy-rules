@@ -33,6 +33,8 @@ DNS 监听范围也有差异：Clash Verge Rev 版生成 `0.0.0.0:1053`，其余
 
 ## WiFi Calling 版本区别
 
+版本选择与操作顺序见 [WiFi Calling 版本选择与最小实机验证](docs/wifi-calling-validation.md)。文档区分已完成的仓库／核心隔离验证与待完成的手机实测，并给出空组保护、UDP 500/4500 分流、IMS 状态及通话／短信的核对步骤。
+
 | 文件 | 源码中的默认行为与用途 |
 | --- | --- |
 | `uk.js` | 加载后即把 UK / Vodafone DE 的 ePDG 送入对应策略组，组首项分别为自动 UK / DE；并注入 Vodafone DE 固定 hosts 和对应 IP 规则。没有统一版的 `OFF` 开关。 |
@@ -69,6 +71,7 @@ scenarios/
     uk-de-us.js
 docs/
   initial-import.md
+  wifi-calling-validation.md
 scripts/
   check.cjs
 ```
