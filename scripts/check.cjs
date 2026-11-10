@@ -32,6 +32,12 @@ function evaluate(source, input, expression = "main(input)") {
   }));
 }
 
+// 将生成表达式的 (?i) 映射为 JS 标志，检查代表反例；不是 Mihomo 正则引擎验收。
+function accepts(group, name) {
+  const matches = pattern => new RegExp(pattern.replaceAll("(?i)", ""), "i").test(name);
+  return matches(group.filter || ".*") && (!group["exclude-filter"] || !matches(group["exclude-filter"]));
+}
+
 for (const file of files) {
   const source = fs.readFileSync(path.join(root, file), "utf8");
   new vm.Script(source, { filename: file });
@@ -61,9 +67,9 @@ for (const file of files) {
     assert.equal(out.dns.listen, file.includes("clash-verge-rev")
       ? "0.0.0.0:1053" : "127.0.0.1:1053", file);
     const autoGroups = groups.filter(group => group.type === "url-test");
-    assert(autoGroups.length > 0, file);
+    assert.equal(autoGroups.length, file.startsWith("clients/") ? 6 : 8, file);
     for (const group of autoGroups) {
-      assert.equal(group["empty-fallback"], file.startsWith("clients/") ? "REJECT" : undefined, file);
+      assert.equal(group["empty-fallback"], "REJECT", file);
     }
     const phoneGroups = groups.filter(group => group.name.startsWith("📞"));
     if (file.endsWith("/uk.js") || file.endsWith("/uk-de.js")) {
@@ -98,6 +104,86 @@ for (const file of files) {
   if (!file.endsWith("/uk.js")) {
     assert.deepEqual(evaluate(source, input).hosts, input.hosts, file);
   }
+  if (file.startsWith("scenarios/")) {
+    const out = evaluate(source, fixtures[0]);
+    const group = name => out["proxy-groups"].find(item => item.name === name);
+    const gateway = "DOMAIN,gateway.ai.cloudflare.com,AI";
+    assert.equal(out.rules.filter(rule => rule === gateway).length, 1, file);
+    assert(out.rules.indexOf(gateway) < out.rules.indexOf("DOMAIN-SUFFIX,cloudflare.com,DIRECT"), file);
+    assert(out.rules.includes("DOMAIN,vscode-sync.trafficmanager.net,开发工具"), file);
+    for (const domain of ["oaistatsig.com", "claude.app", "claudemcpcontent.com"]) {
+      assert(out.rules.includes(`DOMAIN-SUFFIX,${domain},AI`), file);
+      assert.deepEqual(out.dns["nameserver-policy"][`+.${domain}`],
+        ["https://1.1.1.1/dns-query", "https://8.8.8.8/dns-query"], file);
+    }
+    assert(out.rules.includes("DOMAIN-SUFFIX,onedrive.live.com,节点选择"), file);
+    assert(!out.rules.includes("DOMAIN-SUFFIX,onedrive.live.com,DIRECT"), file);
+    assert(Array.isArray(out.dns["nameserver-policy"]["+.onedrive.live.com"]), file);
+    assert(!Object.hasOwn(out.dns, "strategy"), file);
+    // 明确排除的分流策略不能借通用同步混入。
+    for (const domain of ["apps.apple.com", "itunes.apple.com", "oracle.com", "oraclecloud.com"]) {
+      assert(!out.rules.some(rule => rule.split(",")[1] === domain), file);
+      for (const key of [domain, `+.${domain}`]) {
+        assert(!Object.hasOwn(out.dns["nameserver-policy"], key), file);
+      }
+    }
+    const unified = file.endsWith("/uk-de-us.js");
+    assert.equal(group("漏网之鱼").proxies[0], unified ? "节点选择" : "🇺🇸 手动-US", file);
+    for (const item of out["proxy-groups"].filter(item => item.type === "select")) {
+      const periodic = ["节点选择", "🇺🇸 手动-US"].includes(item.name) ||
+        (!unified && item.name.startsWith("📞"));
+      assert.equal(item.interval, periodic ? 300 : undefined, `${file}: ${item.name}`);
+    }
+    for (const [name, node, expected] of [
+      ["🇺🇸 自动-US", "JP-住宅-01", false],
+      ["🇺🇸 自动-US", "US-剩余流量-100GB", false],
+      ["🇺🇸 自动-US", "US-EUGameHost-01", true],
+      ["🇺🇸 自动-US", "US-GAME-01", false],
+      ["🇺🇸 自动-US", "LAX-01", true],
+      ["🧩 自动-其他", "LAX-01", false],
+      ["🌍 自动-Global", "US-娱乐节点-01", false],
+      ["🌍 自动-Global", "HK01", false],
+      ["🧩 自动-其他", "Finland-01", true],
+      ["🧩 自动-其他", "Finland-娱乐节点-01", false],
+      ["🇩🇪 自动-DE", "FRA01", true],
+      ["🇬🇧 自动-UK", "LHR01", true],
+      ["🧩 自动-其他", "FRA01", false],
+      ["🧩 自动-其他", "LHR01", false],
+      ["🇬🇧 自动-UK", "UK-EUGameHost-01", true],
+      ["🇬🇧 自动-UK", "UK-剩余流量-01", false]
+    ]) assert.equal(accepts(group(name), node), expected, `${file}: ${name} / ${node}`);
+
+    if (unified) {
+      const phone = group("📞 UK VoWiFi（手动候选）");
+      assert(accepts(phone, "UK-EUGameHost-5x"), file);
+      assert(!accepts(phone, "DE-EUGameHost-01"), file);
+      assert(!accepts(phone, "UK-剩余流量-01"), file);
+      // 覆盖八个活动 profile 的两种源地址范围，保证通用同步不影响端口保护。
+      const definitions = evaluate(source, {}, "VOWIFI_PROFILE_DEFINITIONS");
+      for (const [profile, definition] of Object.entries(definitions)) {
+        if (profile === "OFF") continue;
+        for (const scope of ["SOURCE_IPS_REQUIRED", "ALL_TUN_CLIENTS"]) {
+          const configured = source
+            .replace('const VOWIFI_ACTIVE_PROFILE = "OFF";', `const VOWIFI_ACTIVE_PROFILE = "${profile}";`)
+            .replace('const VOWIFI_IKE_SCOPE = "SOURCE_IPS_REQUIRED";', `const VOWIFI_IKE_SCOPE = "${scope}";`)
+            .replace(/const VOWIFI_OBSERVED_SOURCE_IPV4S = \[[\s\S]*?\n\];/, 'const VOWIFI_OBSERVED_SOURCE_IPV4S = ["192.0.2.2"];');
+          const active = evaluate(configured, fixtures[0]);
+          const portRules = active.rules.filter(rule => /DST-PORT,(500|4500)/.test(rule));
+          const expected = [500, 4500].flatMap(port => {
+            const prefix = `AND,((IN-TYPE,TUN),(NETWORK,UDP),(DST-PORT,${port})` +
+              (scope === "SOURCE_IPS_REQUIRED" ? ",(SRC-IP-CIDR,192.0.2.2/32)" : "") + ")";
+            return definition.target === "DIRECT" ? [`${prefix},DIRECT`] :
+              [`${prefix},${definition.target}`, `${prefix},REJECT`];
+          });
+          assert.deepEqual(portRules, expected, `${profile}: ${scope}`);
+          assert.deepEqual(active.rules.slice(0, expected.length), expected, `${profile}: priority`);
+        }
+      }
+      const missingSource = source.replace('const VOWIFI_ACTIVE_PROFILE = "OFF";',
+        'const VOWIFI_ACTIVE_PROFILE = "UK_PROXY";');
+      assert.throws(() => evaluate(missingSource, fixtures[0]), /至少需要一个/, file);
+    }
+  }
   console.log(`PASS ${file}`);
 }
-console.log("PASS: 6 scripts; 18 config cases; 6 empty-input cases; references and documented defaults.");
+console.log("PASS: 6 scripts; 18 config cases; 6 empty-input cases; references, generic fixes, filters and 16 active-profile/scope cases.");

@@ -1,4 +1,8 @@
-// Sparkle / Mihomo 覆写脚本（v16 + UK / Vodafone DE Wi-Fi Calling 优化版）
+// Sparkle / Mihomo 覆写脚本（v16.1 + UK / Vodafone DE Wi-Fi Calling 优化版）
+// 2026-11-10 通用修复同步：8 个自动组空组拒绝；修正 AI Gateway 顺序与通用节点筛选；
+// 补齐 VS Code 同步及 AI 域名覆盖。保留本版 VoWiFi 流程、App Store、Oracle 和漏网之鱼策略。
+// 核心须支持 empty-fallback（已核对 Mihomo v1.19.31 契约）；空组保护不代表 UDP/IMS 可用。
+// 同步 OneDrive 路由/DNS、清理 dns.strategy，仅缩小普通 select 周期检查；电话组周期保持。
 // 非 Wi-Fi Calling 基线：Sparkle覆写脚本_v16优化版.js
 // 适用：Sparkle-windows-1.26.4-x64 / Mihomo 内核，TUN + 规则模式
 //
@@ -190,7 +194,6 @@ const dnsConfig = {
   "respect-rules": true,
   "use-hosts": true,
   "use-system-hosts": false,
-  "strategy": "prefer-ipv4",
   "cache-algorithm": "arc",
   "enhanced-mode": "fake-ip",
   "fake-ip-range": "198.18.0.1/16",
@@ -528,6 +531,7 @@ const devToolRules = [
   "DOMAIN,vscode.download.prss.microsoft.com,开发工具",
   "DOMAIN,download.visualstudio.microsoft.com,开发工具",
   "DOMAIN,vscode.dev,开发工具",
+  "DOMAIN,vscode-sync.trafficmanager.net,开发工具",
   "DOMAIN,cursor-cdn.com,开发工具",
   "DOMAIN,anysphere-binaries.s3.us-east-1.amazonaws.com,开发工具"
 ];
@@ -537,7 +541,8 @@ const openaiRules = [
   "DOMAIN-SUFFIX,openai.com,AI",
   "DOMAIN-SUFFIX,chatgpt.com,AI",
   "DOMAIN-SUFFIX,oaistatic.com,AI",
-  "DOMAIN-SUFFIX,oaiusercontent.com,AI"
+  "DOMAIN-SUFFIX,oaiusercontent.com,AI",
+  "DOMAIN-SUFFIX,oaistatsig.com,AI"
 ];
 
 // --- Claude / Claude Code / Claude CLI ---
@@ -549,6 +554,8 @@ const claudeRules = [
   "DOMAIN-SUFFIX,anthropic.com,AI",
   "DOMAIN-SUFFIX,claude.ai,AI",
   "DOMAIN-SUFFIX,claude.com,AI",
+  "DOMAIN-SUFFIX,claude.app,AI",
+  "DOMAIN-SUFFIX,claudemcpcontent.com,AI",
   "DOMAIN-SUFFIX,claudeusercontent.com,AI",
   "DOMAIN-SUFFIX,claudemcpclient.com,AI",
   "DOMAIN,clau.de,AI",
@@ -589,7 +596,6 @@ const aiMiscRules = [
   "DOMAIN-SUFFIX,perplexity.ai,AI",
   "DOMAIN-SUFFIX,x.ai,AI",
   "DOMAIN,copilot.microsoft.com,AI",
-  "DOMAIN,gateway.ai.cloudflare.com,AI",
   "DOMAIN-SUFFIX,openrouter.ai,AI",
   "DOMAIN-SUFFIX,mistral.ai,AI",
   "DOMAIN-SUFFIX,cohere.ai,AI",
@@ -692,7 +698,7 @@ const stabilityAllowRules = [
   "DOMAIN-SUFFIX,login.microsoftonline.com,DIRECT",
   "DOMAIN-SUFFIX,login.live.com,DIRECT",
   "DOMAIN-SUFFIX,account.live.com,DIRECT",
-  "DOMAIN-SUFFIX,onedrive.live.com,DIRECT",
+  "DOMAIN-SUFFIX,onedrive.live.com,节点选择",
   "DOMAIN-SUFFIX,msftconnecttest.com,DIRECT",
   "DOMAIN-SUFFIX,msftncsi.com,DIRECT",
 
@@ -719,6 +725,8 @@ const stabilityAllowRules = [
   "DOMAIN-SUFFIX,challenges.cloudflare.com,节点选择",
   "DOMAIN-SUFFIX,cloudflareinsights.com,节点选择",
   "DOMAIN-SUFFIX,cloudflare.dev,节点选择",
+  // AI Gateway 必须先于 cloudflare.com 通用直连规则匹配。
+  "DOMAIN,gateway.ai.cloudflare.com,AI",
   // [Fix-AJ v13.3] CSP 违规上报域名，非功能性遥测，静默丢弃即可。
   "DOMAIN-SUFFIX,csp-reporting.cloudflare.com,REJECT-DROP",
   "DOMAIN-SUFFIX,cloudflare-cn.com,DIRECT",
@@ -868,17 +876,24 @@ const rules = [
 const HEALTH_CHECK_URL = "https://www.gstatic.com/generate_204";
 
 const groupCommonOption = {
-  "interval": 300,
   "url": HEALTH_CHECK_URL,
   "timeout": 5000,
   "expected-status": 204,
   "hidden": false
 };
 
+const periodicSelectGroupOption = {
+  ...groupCommonOption,
+  "interval": 300,
+  "lazy": true
+};
+
 const autoTestGroupOption = {
   ...groupCommonOption,
+  "interval": 300,
   "lazy": true,
-  "tolerance": 100
+  "tolerance": 100,
+  "empty-fallback": "REJECT"
 };
 
 function main(config) {
@@ -925,6 +940,7 @@ function main(config) {
     // --- 国内直连域名走国内 DNS ---
     "geosite:cn,private": domesticNameservers,
     "geosite:apple,icloud,microsoft": domesticNameservers,
+    "+.onedrive.live.com": foreignNameservers,
 
     // --- 需要海外 DNS 解析的服务（精确域名优先列出）---
 
@@ -950,6 +966,7 @@ function main(config) {
     "+.chatgpt.com": foreignNameservers,
     "+.oaistatic.com": foreignNameservers,
     "+.oaiusercontent.com": foreignNameservers,
+    "+.oaistatsig.com": foreignNameservers,
     "+.anthropic.com": foreignNameservers,
     "+.claude.ai": foreignNameservers,
     // [Fix-Q] 保留 claude.com 的显式海外 DNS 覆盖：
@@ -957,6 +974,8 @@ function main(config) {
     // 继续显式列出是为了降低 geosite 数据滞后或规则库变动导致的解析不确定性，
     // 对 Claude Code / Claude CLI / 浏览器访问 Claude 均更稳妥。
     "+.claude.com": foreignNameservers,
+    "+.claude.app": foreignNameservers,
+    "+.claudemcpcontent.com": foreignNameservers,
     "+.claudeusercontent.com": foreignNameservers,
     "+.claudemcpclient.com": foreignNameservers,
     "clau.de": foreignNameservers,
@@ -1040,19 +1059,32 @@ function main(config) {
 
   // 节点过滤
   const filterKeywords = "(?:官网|套餐|流量|expiring|剩余|時間|重置|URL|到期|过期|机场|group|sub|订阅|查询|续费|观看|频道|客服|M3U|车费|车友|上车|通知|公告|严禁|测速)";
-  const regionKeywordsRegex = "(?i)(?:\\bHK\\b|Hong\\s*Kong|香港|🇭🇰|\\bTW\\b|Taiwan|台湾|臺灣|🇹🇼|\\bJP\\b|Japan|日本|🇯🇵|\\bSG\\b|Singapore|狮城|新加坡|🇸🇬|\\bUS\\b|\\bUSA\\b|United\\s*States|America|美国|🇺🇸|\\bDE\\b|Germany|Deutschland|德国|德國|🇩🇪|\\bUK\\b|\\bGB\\b|United\\s*Kingdom|Britain|England|London|英国|英國|🇬🇧)";
+  // 英文标记允许紧邻编号、中文或分隔符，但不得嵌入其他英文单词。
+  // 地区组与「其他」共用识别词，避免 LAX 等机场代码同时落入两类组。
+  const regionKeywords = {
+    HK: "(?:香港|🇭🇰|(?:^|[^A-Za-z])(?:HK|Hong\\s*Kong)(?=$|[^A-Za-z]))",
+    TW: "(?:台湾|臺灣|🇹🇼|(?:^|[^A-Za-z])(?:TW|Taiwan|Taipei|TPE|TSA|KHH)(?=$|[^A-Za-z]))",
+    JP: "(?:日本|🇯🇵|(?:^|[^A-Za-z])(?:JP|Japan|NRT|HND|KIX|CTS|FUK)(?=$|[^A-Za-z]))",
+    SG: "(?:狮城|新加坡|🇸🇬|(?:^|[^A-Za-z])(?:SG|Singapore|SIN|XSP)(?=$|[^A-Za-z]))",
+    US: "(?:美国|🇺🇸|(?:^|[^A-Za-z])(?:US|USA|United\\s*States|America|SJC|JFK|LAX|ORD|SFO|SEA|IAD)(?=$|[^A-Za-z]))",
+    DE: "(?:德国|德國|🇩🇪|(?:^|[^A-Za-z])(?:DE|Germany|Deutschland|Frankfurt|FRA)(?=$|[^A-Za-z]))",
+    UK: "(?:英国|英國|🇬🇧|(?:^|[^A-Za-z])(?:UK|GB|United\\s*Kingdom|Britain|England|London|LHR|LGW)(?=$|[^A-Za-z]))"
+  };
+  const regionKeywordsRegex = `(?:${Object.values(regionKeywords).join("|")})`;
   const nodeFilterString = `(?i)^(?!.*${filterKeywords}).*$`;
   const otherFilterString = `(?i)^(?!.*${filterKeywords})(?!.*${regionKeywordsRegex}).*$`;
 
-  const excludeSuffix = "(?!.*(游戏|娱乐节点|GAME|5x|10x))";
-  const hkNodeRegex = "(?i)(\\bHK\\b|Hong\\s*Kong|香港|🇭🇰)";
+  // 保留游戏与既有倍率排除；GAME 按标签匹配，避免误排 EUGameHost 等服务商名称。
+  const excludeSuffix = "(?!.*(?:游戏|娱乐节点|(?:^|[^A-Za-z])GAME(?=$|[^A-Za-z])|5x|10x))";
+  const regionNodeFilter = region =>
+    `(?i)^(?!.*${filterKeywords})${excludeSuffix}(?=.*${region}).*$`;
   const REGEX = {
-    TW: `(?i)^${excludeSuffix}(?=.*(\\bTW\\b|Taiwan|台湾|臺灣|🇹🇼|Taipei|TPE|TSA|KHH)).*$`,
-    JP: `(?i)^${excludeSuffix}(?=.*(\\bJP\\b|Japan|日本|🇯🇵|NRT|HND|KIX|CTS|FUK)).*$`,
-    SG: `(?i)^${excludeSuffix}(?=.*(\\bSG\\b|Singapore|狮城|新加坡|🇸🇬|SIN|XSP)).*$`,
-    US: `(?i)^${excludeSuffix}(?=.*((?!.*(?:Aus|Rus))\\bUS\\b|\\bUSA\\b|United\\s*States|America|美国|住宅|🇺🇸|SJC|JFK|LAX|ORD|SFO|SEA|IAD)).*$`,
-    DE: `(?i)^${excludeSuffix}(?=.*(\\bDE\\b|Germany|Deutschland|德国|德國|🇩🇪|Frankfurt|FRA)).*$`,
-    UK: `(?i)^${excludeSuffix}(?=.*(\\bUK\\b|\\bGB\\b|United\\s*Kingdom|Britain|England|London|英国|英國|🇬🇧|LHR|LGW)).*$`
+    TW: regionNodeFilter(regionKeywords.TW),
+    JP: regionNodeFilter(regionKeywords.JP),
+    SG: regionNodeFilter(regionKeywords.SG),
+    US: regionNodeFilter(regionKeywords.US),
+    DE: regionNodeFilter(regionKeywords.DE),
+    UK: regionNodeFilter(regionKeywords.UK)
   };
 
   const autoRegionGroups = [
@@ -1079,7 +1111,7 @@ function main(config) {
   config["proxy-groups"] = [
     // ---- 主选择组 ----
     {
-      ...groupCommonOption,
+      ...periodicSelectGroupOption,
       name: "节点选择",
       type: "select",
       proxies: ["🇺🇸 手动-US", "🌍 自动-Global", "🇯🇵 自动-JP", "🇸🇬 自动-SG", "🇺🇸 自动-US", "🇹🇼 自动-TW", "🧩 自动-其他"],
@@ -1090,7 +1122,7 @@ function main(config) {
 
     // 手动-US：只列出 US 节点，手动挑选最信任的那个
     {
-      ...groupCommonOption,
+      ...periodicSelectGroupOption,
       name: "🇺🇸 手动-US",
       type: "select",
       proxies: ["🇺🇸 自动-US"],
@@ -1103,6 +1135,8 @@ function main(config) {
     // 首选归属国自动组；可手动改选具体 UK/DE 节点。DIRECT 只用于排错或官方原生支持场景。
     {
       ...groupCommonOption,
+      // 保留本版电话组原有周期检查。
+      "interval": 300,
       name: ukWifiCallingGroup,
       type: "select",
       proxies: ["🇬🇧 自动-UK", "节点选择", "DIRECT"],
@@ -1113,6 +1147,8 @@ function main(config) {
     },
     {
       ...groupCommonOption,
+      // 保留本版电话组原有周期检查。
+      "interval": 300,
       name: vodafoneDeWifiCallingGroup,
       type: "select",
       proxies: ["🇩🇪 自动-DE", "节点选择", "DIRECT"],
@@ -1224,7 +1260,7 @@ function main(config) {
       type: "url-test",
       "include-all": true,
       filter: nodeFilterString,
-      "exclude-filter": hkNodeRegex,
+      "exclude-filter": `(?i)(?:${regionKeywords.HK}|娱乐节点)`,
       icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/auto.svg"
     },
     {
@@ -1281,6 +1317,7 @@ function main(config) {
       type: "url-test",
       "include-all": true,
       filter: otherFilterString,
+      "exclude-filter": "娱乐节点",
       icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/all.svg"
     }
   ];

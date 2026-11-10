@@ -11,11 +11,11 @@
 | FlClash | [override.js](clients/flclash/override.js) | v16.7 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/clients/flclash/override.js) |
 | Sparkle | [override.js](clients/sparkle/override.js) | v16.7 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/clients/sparkle/override.js) |
 | Clash Verge Rev | [override.js](clients/clash-verge-rev/override.js) | v16.6 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/clients/clash-verge-rev/override.js) |
-| WiFi Calling：英国全网版 | [uk.js](scenarios/wifi-calling/uk.js) | v16 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/scenarios/wifi-calling/uk.js) |
-| WiFi Calling：英国德国版 | [uk-de.js](scenarios/wifi-calling/uk-de.js) | v16 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/scenarios/wifi-calling/uk-de.js) |
-| WiFi Calling：英国德国美国统一版 | [uk-de-us.js](scenarios/wifi-calling/uk-de-us.js) | v16.8 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/scenarios/wifi-calling/uk-de-us.js) |
+| WiFi Calling：英国全网版 | [uk.js](scenarios/wifi-calling/uk.js) | v16.1 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/scenarios/wifi-calling/uk.js) |
+| WiFi Calling：英国德国版 | [uk-de.js](scenarios/wifi-calling/uk-de.js) | v16.1 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/scenarios/wifi-calling/uk-de.js) |
+| WiFi Calling：英国德国美国统一版 | [uk-de-us.js](scenarios/wifi-calling/uk-de-us.js) | v16.9 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/scenarios/wifi-calling/uk-de-us.js) |
 
-版本来自原文件头，不能代替 Git 提交标识。上述 Raw 链接随 `main` 更新；需要可复现配置时，把 URL 中的 `main` 替换为已检查的完整提交 SHA。
+版本来自当前文件头，不能代替 Git 提交标识。上述 Raw 链接随 `main` 更新；需要可复现配置时，把 URL 中的 `main` 替换为已检查的完整提交 SHA。
 
 ## 使用方式与边界
 
@@ -41,11 +41,19 @@ DNS 监听范围也有差异：Clash Verge Rev 版生成 `0.0.0.0:1053`，其余
 
 表中“组首项”是生成配置中的顺序；脚本启用了 `store-selected`，客户端保存的历史选择可能继续生效，应用后须核对实际选择。
 
-三个版本保留原有行为，不能只按文件名中的国家范围互换，也不能按版本号认定统一版包含普通 Sparkle 版的全部更新。统一版文件头注明通用基线为 Sparkle v16.4；当前三个客户端版的自动测速组都显式设置了 `empty-fallback: REJECT`，三个 WiFi Calling 版的自动测速组均未设置该项。统一版的 VoWiFi 手动候选组保护不等于所有策略组都有相同保护。
+三个版本保留各自的场景逻辑，不能只按文件名中的国家范围互换，也不能按版本号认定统一版包含普通 Sparkle 版的全部更新。统一版继承 Sparkle v16.4 基线，本次仅同步以下通用修复：
+
+- 三份脚本各 8 个自动测速组均设置 `empty-fallback: REJECT`；修正通用地区筛选、信息节点排除、GAME 标签边界，以及地区组与“其他”组的识别一致性。
+- 把 AI Gateway 精确规则移至 Cloudflare 通用直连规则之前；补齐 VS Code 同步规则及 `oaistatsig.com`、`claude.app`、`claudemcpcontent.com` 的 AI 规则与 DNS。
+- 英国全网版、英国德国版另同步 OneDrive 的“节点选择”路由与海外 DNS，移除 `dns.strategy`，缩小普通手动选择组的周期检查范围；电话组保留原周期。
+
+本次不调整 App Store、Oracle、漏网之鱼的分流策略。各版 ePDG、hosts 回退及统一版 profile / UDP 端口保护逻辑保持；统一版 VoWiFi 专用候选过滤独立保留。英国全网版和英国德国版的电话组复用通用地区过滤，因此候选节点会随上述筛选修复变化。
+
+核心须支持 [`empty-fallback`](https://wiki.metacubex.one/en/config/proxy-groups/#empty-fallback)；本次实际验证使用 Mihomo v1.19.33，不据此声明最低支持版本。`REJECT` 保护针对过滤后没有候选的自动组，不保证候选全部测速失败时拒绝连接，也不证明节点 UDP、手机 IMS 注册或通话可用。统一版的 VoWiFi 手动候选组保护与自动组空组保护分别生效。
 
 统一版的 profile、源地址范围与启用步骤见其文件开头注释。WiFi Calling 是否成功仍需要手机流量路径、节点 UDP、运营商条件和 IMS 注册、通话、短信等实际验证。
 
-脚本中的客户端版本、运营商政策、DNS 观测、历史测试结果和故障归因是原文件携带的记录。本次导入没有重新核验这些历史主张，也没有进行客户端部署、核心运行或 WiFi Calling 业务验收。
+脚本中的客户端版本、运营商政策、DNS 观测、历史测试结果和故障归因是原文件携带的记录。首次导入及本次通用修复均未重新核验这些历史主张。本次核心隔离验证范围见下文；未进行客户端部署或 WiFi Calling 业务验收。
 
 ## 目录与后续扩展
 
@@ -73,7 +81,7 @@ scripts/
 
 ## 导入、来源与验证
 
-[首次导入记录](docs/initial-import.md) 列出原文件名、目标路径、SHA-256 与本次验证范围。六份脚本按当前工作文件逐字节导入，保留原编码、换行和注释；未导入源目录的 Git 历史、备份、日志、参考资料或开发工具状态。
+[首次导入记录](docs/initial-import.md) 列出原文件名、目标路径、首次导入 SHA-256 与当时的验证范围。六份脚本首次按来源工作文件逐字节导入；此后三份 WiFi Calling 脚本在本仓库内独立维护，历史导入哈希不代表更新后的内容。原项目文件保持不变，未导入源目录的 Git 历史、备份、日志、参考资料或开发工具状态。
 
 原脚本保留了历史 SSH 管理规则的变更注释；当前三个客户端版本没有这些私人地址的 SSH 直连例外，应以实际规则为准。
 
@@ -83,7 +91,9 @@ scripts/
 node scripts/check.cjs
 ```
 
-检查不需要安装 npm 依赖、不访问网络、不读入个人配置，也不写出生成配置。它复查六份脚本的语法、18 组配置生成、6 组空输入拒绝、规则引用，以及上文所列的 DNS 监听和 WiFi Calling 默认行为；本次使用 Node.js v24.22.1 通过。它不检查外部规则可达性，也不能替代客户端引擎、Mihomo 核心及实际网络验收。原文件字节同一性和发布内容的敏感信息检查属于首次导入审计，不由这个配置检查命令证明。
+检查不需要安装 npm 依赖、不访问网络、不读入个人配置，也不写出生成配置。它复查六份脚本的语法、18 组配置生成、6 组空输入拒绝、规则引用、DNS 监听与 WiFi Calling 默认行为，并检查本次通用修复、代表性过滤反例、保留的分流策略和统一版 8 个活动 profile × 2 种源地址范围。正则反例使用 JavaScript 引擎，不能代替核心实际过滤。本次使用 Node.js v24.22.1 通过。该命令不检查外部规则可达性、发布内容敏感信息或原文件字节同一性，也不能替代客户端及网络验收。
+
+2026-11-10 另用 Mihomo v1.19.33 对三份完整生成配置运行 `-t`，均通过；规则解析使用本机已有的公开规则缓存，未验证外部来源的新鲜度。随后对每份脚本分别运行混合候选、内联节点全被过滤、文件 provider 节点全被过滤三种隔离配置，共读回 72 个自动组，验证实际筛选及空组回退到 `REJECT`。运行配置关闭 TUN、DNS 和代理监听，使用虚构节点及本机检查地址；这些结果不代表客户端导入、远端 UDP 或 WiFi Calling 业务验收。
 
 脚本引用的外部规则及图标包括 Loyalsoldier、Sukka、blackmatrix7 和 Clash Verge Rev 等项目；具体 URL 保留在各文件中，规则加载仍依赖这些外部来源。本次未打包外部规则，也未更改其来源。
 
