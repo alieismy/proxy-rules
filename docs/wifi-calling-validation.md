@@ -87,13 +87,13 @@ empty-fallback: REJECT
 | `*_DIRECT` | 两个目标端口进入 `DIRECT`，受设定的 TUN／源地址条件约束 |
 | `*_PROXY` | 每个端口的主规则进入对应 VoWiFi 手动组，后面紧跟同条件 `REJECT`；端口规则位于一般域名分流之前 |
 
-同时检查当前国家代表 ePDG 的域名路由与 DNS 目标，确认它们跟随同一 profile；未激活国家保持脚本设定的直连。DNS 策略作用于整份配置，不受端口规则的源地址条件限制。
+同时检查当前 profile 对应类别（UK、DE、VODAFONE_DE 或 US）的代表 ePDG 域名路由与 DNS 目标；DE 与 VODAFONE_DE 是两个独立类别。未激活类别的这些配置目标为 `DIRECT`，但这不保证其实际 UDP 500/4500 直连：高优先级端口规则不限定目的国家或域名，会先接管所选源地址范围内的全部 TUN UDP 500/4500。DNS 策略作用于整份配置，不受端口规则的源地址条件限制。
 
 核对手机实际查询的 ePDG 及别名是否在 `fake-ip-filter` 排除范围，供 IKE 使用的是实际地址而非 fake-IP。查不到实际地址或只拿到 fake-IP 时，先定位 DNS，不能把后续端口超时直接归因于代理节点。
 
 相邻拒绝规则用于防止主规则选中不支持 UDP 的代理后继续落入其他分流。Mihomo 官方说明：UDP 请求匹配到不支持 UDP 的代理时会继续向下匹配。它不能检测节点宣称支持 UDP 后的上游静默丢包。[Mihomo 规则优先级](https://wiki.metacubex.one/en/config/rules/#priority)
 
-重新建立手机的 WiFi Calling 连接后，核对连接详情：
+采集端口证据前，先按步骤四建立并保持排除蜂窝回退的测试状态，再重新建立手机的 WiFi Calling 连接，复核步骤一的实际入站和源 IPv4；使用 `SOURCE_IPS_REQUIRED` 时，若源地址变化，须先在私人测试副本中更新源地址并重新应用，不能沿用旧规则验收。随后在同一网络状态与时间窗口内核对连接详情：
 
 1. 入站是否为 `TUN`，源地址是否符合规则，协议是否为 UDP。
 2. 目标端口 500 或 4500 命中了哪条规则、哪个电话组，以及最终哪个具体节点。
@@ -114,7 +114,7 @@ IKE 可以直接从 4500 开始，因此没捕获到 500 不能单独判定失�
 
 ### 步骤四：确认手机侧 IMS／WiFi Calling 状态
 
-在设备支持且测试窗口允许时，开启飞行模式后单独打开 Wi-Fi，排除蜂窝通话回退；双 SIM 手机要确认目标线路。若无法排除蜂窝或另一张 SIM 的数据路径，应记录这一限制，不能仅凭接通认定经过所测 Wi-Fi 路径。
+在设备支持且测试窗口允许时，开启飞行模式后单独打开 Wi-Fi，排除蜂窝通话回退；双 SIM 手机要确认目标线路。这项准备应在步骤三采集端口证据之前完成。若到此时才改变飞行模式、Wi-Fi 或其他网络状态，应重新核对步骤一和步骤三，将新的源地址、出口、IMS 状态与后续业务记录关联起来，不拼接旧会话证据。若无法排除蜂窝或另一张 SIM 的数据路径，应记录这一限制，不能仅凭接通认定经过所测 Wi-Fi 路径。
 
 - **iPhone：** 查看控制中心内目标运营商线路的“Wi-Fi”状态，不是普通 Wi-Fi 扇形图标。Apple 将这一状态作为 WiFi Calling 可用的标志。[Apple 使用说明](https://support.apple.com/en-us/108066)
 - **Android：** 若设备提供 IMS 状态或诊断信息，核对目标 SIM 已注册，并确认接入为 `WLAN/IWLAN`；只显示“IMS Registered”可能对应蜂窝 IMS。Android 的 IMS 注册属性明确区分 WLAN 和 WWAN。[Android IMS 注册属性](https://developer.android.com/reference/android/telephony/ims/ImsRegistrationAttributes)
