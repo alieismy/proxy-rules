@@ -1,4 +1,5 @@
 // FlClash 覆写脚本（v16.9 Claude Code 精确分流版）
+// 本机版本：FlClash 0.9.4 / Mihomo v1.19.34
 // 历史适配基线（v16.5）：FlClash-0.8.94-windows-amd64 / Mihomo v1.19.30 / QuickJS 引擎
 // 运行模式：TUN（由 FlClash UI 控制）+ 系统代理 + 规则模式
 // 基线：从 Sparkle v16 同步平台无关逻辑
@@ -647,7 +648,7 @@ const stabilityAllowRules = [
   // [Fix-AJ v13.3] CSP 违规上报域名，非功能性遥测，静默丢弃即可。
   "DOMAIN-SUFFIX,csp-reporting.cloudflare.com,REJECT-DROP",
   "DOMAIN-SUFFIX,cloudflare-cn.com,DIRECT",
-  // [Route-BM v16.7] FlClash 0.8.99 的首个出口 IP 检测源，须先于通用直连规则匹配。
+  // [Route-BM v16.7] FlClash 0.9.4 仍先请求 www.cloudflare.com 检测出口 IP，此规则须排在通用直连规则之前。
   "DOMAIN,www.cloudflare.com,节点选择",
   "DOMAIN-SUFFIX,cloudflare.com,DIRECT",
 
