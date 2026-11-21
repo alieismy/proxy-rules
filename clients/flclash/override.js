@@ -1,7 +1,14 @@
-// FlClash 覆写脚本（v16.7 网络检测出口修正版）
+// FlClash 覆写脚本（v16.8 微信功能域名放行版）
 // 历史适配基线（v16.5）：FlClash-0.8.94-windows-amd64 / Mihomo v1.19.30 / QuickJS 引擎
 // 运行模式：TUN（由 FlClash UI 控制）+ 系统代理 + 规则模式
 // 基线：从 Sparkle v16 同步平台无关逻辑
+// v16.8 变更说明（2026-11-11）：
+//   微信功能域名 wxa.wxs.qq.com 与 dns.weixin.qq.com.cn 精确 DIRECT，先于广告规则匹配；
+//   对齐 Sparkle 的小范围放行，不放开整个微信域名树或进程。
+//   保留 info 日志及 www.cloudflare.com 的出口检测代理规则；客户端生效与业务结果待验收。
+//   当前基线已包含此前补入的 VS Code 设置同步、oaistatsig.com 路由及后者的海外 DNS；
+//   历史四条私人 VPS TCP/22 直连例外已删除，SSH 遵循普通规则，以下旧版本说明仅作历史记录。
+//
 // v16.7 变更说明（2026-10-07，FlClash 网络检测分流修复）：
 //   [Route-BM] www.cloudflare.com 精确匹配「节点选择」，避免 Cloudflare trace 检测源命中通用直连规则。
 //              域名级规则也覆盖该主机的其他请求；其他检测源仍按既有规则分流。
@@ -446,7 +453,7 @@ const devToolRules = [
 ];
 
 // --- OpenAI / ChatGPT / Codex ---
-// 来源：https://help.openai.com/en/articles/9247338（2 天前更新）
+// 来源：https://help.openai.com/en/articles/9247338（域名列表核验：2026-11-11）
 const openaiRules = [
   "DOMAIN-SUFFIX,openai.com,AI",
   "DOMAIN-SUFFIX,chatgpt.com,AI",
@@ -606,6 +613,10 @@ const stabilityAllowRules = [
   "DOMAIN-SUFFIX,onedrive.live.com,节点选择",
   "DOMAIN-SUFFIX,msftconnecttest.com,DIRECT",
   "DOMAIN-SUFFIX,msftncsi.com,DIRECT",
+
+  // 微信功能域名精确放行，避免后续广告规则误拦；其他微信域名继续按原规则处理。
+  "DOMAIN,wxa.wxs.qq.com,DIRECT",
+  "DOMAIN,dns.weixin.qq.com.cn,DIRECT",
 
   // [Fix-AH v13.3] Microsoft 新一代 CDN（.microsoft gTLD，后端 Cloudflare）
   // 日志确认 res.public.onecdn.static.microsoft 解析到 104.18.x.x，直连超时。

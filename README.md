@@ -8,7 +8,7 @@
 
 | 客户端 / 场景 | 文件 | 文件头标注版本 | Raw 下载 |
 | --- | --- | --- | --- |
-| FlClash | [override.js](clients/flclash/override.js) | v16.7 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/clients/flclash/override.js) |
+| FlClash | [override.js](clients/flclash/override.js) | v16.8 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/clients/flclash/override.js) |
 | Sparkle | [override.js](clients/sparkle/override.js) | v16.7 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/clients/sparkle/override.js) |
 | Clash Verge Rev | [override.js](clients/clash-verge-rev/override.js) | v16.6 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/clients/clash-verge-rev/override.js) |
 | WiFi Calling：英国全网版 | [uk.js](scenarios/wifi-calling/uk.js) | v16.1 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/scenarios/wifi-calling/uk.js) |
@@ -84,7 +84,9 @@ scripts/
 
 ## 导入、来源与验证
 
-[首次导入记录](docs/initial-import.md) 列出原文件名、目标路径、首次导入 SHA-256 与当时的验证范围。六份脚本首次按来源工作文件逐字节导入；此后三份 WiFi Calling 脚本在本仓库内独立维护，历史导入哈希不代表更新后的内容。原项目文件保持不变，未导入源目录的 Git 历史、备份、日志、参考资料或开发工具状态。
+[首次导入记录](docs/initial-import.md) 列出原文件名、目标路径、首次导入 SHA-256 与当时的验证范围。六份脚本首次按来源工作文件逐字节导入；此后三份 WiFi Calling 脚本在本仓库内独立维护，FlClash 也已更新，历史导入哈希不代表更新后的内容。首次导入未修改原项目文件，也未导入源目录的 Git 历史、备份、日志、参考资料或开发工具状态。
+
+2026-11-11，FlClash v16.8 补齐 `wxa.wxs.qq.com` 与 `dns.weixin.qq.com.cn` 的精确 DIRECT 规则，置于广告拦截之前，并同步到原项目的 FlClash 脚本。保留 `info` 日志和 Cloudflare 出口检测规则；本次未加载到客户端，实际生效与微信业务结果待验收。
 
 原脚本保留了历史 SSH 管理规则的变更注释；当前三个客户端版本没有这些私人地址的 SSH 直连例外，应以实际规则为准。
 
