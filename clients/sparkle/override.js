@@ -1,5 +1,8 @@
-// Sparkle / Mihomo 覆写脚本（v16.7 VS Code 设置同步分流版）
+// Sparkle / Mihomo 覆写脚本（v16.8 Claude Code 遥测分流版）
 // 基线：v13.5 保守优化版
+// v16.8 变更说明（2026-11-21）：
+//   [Route-BN] claude.exe 发往 Datadog US5 日志和错误上报端点的请求跟随 Claude API 走「AI」。
+//
 // v16.7 变更说明（2026-10-13）：
 //   [Route-BM] vscode-sync.trafficmanager.net 精确归入「开发工具」，先于 Microsoft 通用规则。
 //
@@ -678,6 +681,13 @@ const noisyRejectRules = [
 // 放在广告拦截之前，用于降低登录、验证码、支付等基础功能被广告规则误伤的概率。
 // 仅保留小范围关键域名；出问题时仍可通过「广告拦截」/「广告静默拦截」策略组排查。
 const stabilityAllowRules = [
+  // 仅让 Claude Code 发往这两个共享 Datadog 端点的遥测跟随 API 出口。
+  "AND,((DOMAIN,http-intake.logs.us5.datadoghq.com),(PROCESS-NAME,claude.exe)),AI",
+  "AND,((DOMAIN,browser-intake-us5-datadoghq.com),(PROCESS-NAME,claude.exe)),AI",
+
+  // Claude Code 的 GitHub MCP 跟随 GitHub API 走 AI，其他进程沿用通用规则。
+  "AND,((DOMAIN,api.githubcopilot.com),(PROCESS-NAME,claude.exe)),AI",
+
   // App Store 网页入口使用美国节点；先于 Apple CDN 直连规则匹配
   "DOMAIN,itunes.apple.com,🇺🇸 手动-US",
   "DOMAIN,apps.apple.com,🇺🇸 手动-US",

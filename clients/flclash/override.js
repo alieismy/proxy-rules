@@ -1,7 +1,10 @@
-// FlClash 覆写脚本（v16.8 微信功能域名放行版）
+// FlClash 覆写脚本（v16.9 Claude Code 精确分流版）
 // 历史适配基线（v16.5）：FlClash-0.8.94-windows-amd64 / Mihomo v1.19.30 / QuickJS 引擎
 // 运行模式：TUN（由 FlClash UI 控制）+ 系统代理 + 规则模式
 // 基线：从 Sparkle v16 同步平台无关逻辑
+// v16.9 变更说明（2026-11-21）：
+//   同步 Sparkle 的三条 Windows 进程与精确域名组合规则：Claude Code 的 Datadog 遥测、错误上报及 GitHub MCP 走 AI。
+//
 // v16.8 变更说明（2026-11-11）：
 //   微信功能域名 wxa.wxs.qq.com 与 dns.weixin.qq.com.cn 精确 DIRECT，先于广告规则匹配；
 //   对齐 Sparkle 的小范围放行，不放开整个微信域名树或进程。
@@ -597,6 +600,13 @@ const noisyRejectRules = [
 // 放在广告拦截之前，用于降低登录、验证码、支付等基础功能被广告规则误伤的概率。
 // 仅保留小范围关键域名；出问题时仍可通过「广告拦截」/「广告静默拦截」策略组排查。
 const stabilityAllowRules = [
+  // 仅让 Claude Code 发往这两个共享 Datadog 端点的遥测跟随 API 出口。
+  "AND,((DOMAIN,http-intake.logs.us5.datadoghq.com),(PROCESS-NAME,claude.exe)),AI",
+  "AND,((DOMAIN,browser-intake-us5-datadoghq.com),(PROCESS-NAME,claude.exe)),AI",
+
+  // Claude Code 的 GitHub MCP 跟随 GitHub API 走 AI，其他进程沿用通用规则。
+  "AND,((DOMAIN,api.githubcopilot.com),(PROCESS-NAME,claude.exe)),AI",
+
   // App Store 网页入口使用美国节点；先于 Apple CDN 规则匹配
   "DOMAIN,itunes.apple.com,🇺🇸 手动-US",
   "DOMAIN,apps.apple.com,🇺🇸 手动-US",

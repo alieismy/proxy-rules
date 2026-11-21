@@ -1,7 +1,10 @@
-// Clash Verge Rev 覆写脚本（v16.6 空组保护与节点筛选修正版）
+// Clash Verge Rev 覆写脚本（v16.7 Claude Code 精确分流版）
 // 历史适配基线（v16.5）：Clash Verge Rev v2.5.2 / Mihomo v1.19.30 / boa_engine JS 引擎
 // 运行模式：TUN（由 UI 开关控制）+ 系统代理 + 规则模式
 // 基线：从 Sparkle v16 同步平台无关逻辑
+// v16.7 变更说明（2026-11-21）：
+//   同步 Sparkle 的三条 Windows 进程与精确域名组合规则：Claude Code 的 Datadog 遥测、错误上报及 GitHub MCP 走 AI。
+//
 // v16.6 变更说明（2026-10-07，同步 Sparkle v16.6 的平台无关修复）：
 //   [Group-BH] 六个自动组显式设置 empty-fallback: REJECT，避免空组经 COMPATIBLE 意外直连。
 //   [Route-BI] gateway.ai.cloudflare.com 的 AI 规则前移至 cloudflare.com 通用直连规则之前。
@@ -591,6 +594,13 @@ const noisyRejectRules = [
 // 放在广告拦截之前，用于降低登录、验证码、支付等基础功能被广告规则误伤的概率。
 // 仅保留小范围关键域名；出问题时仍可通过「广告拦截」/「广告静默拦截」策略组排查。
 const stabilityAllowRules = [
+  // 仅让 Claude Code 发往这两个共享 Datadog 端点的遥测跟随 API 出口。
+  "AND,((DOMAIN,http-intake.logs.us5.datadoghq.com),(PROCESS-NAME,claude.exe)),AI",
+  "AND,((DOMAIN,browser-intake-us5-datadoghq.com),(PROCESS-NAME,claude.exe)),AI",
+
+  // Claude Code 的 GitHub MCP 跟随 GitHub API 走 AI，其他进程沿用通用规则。
+  "AND,((DOMAIN,api.githubcopilot.com),(PROCESS-NAME,claude.exe)),AI",
+
   // App Store 网页入口使用美国节点；先于 Apple CDN 规则匹配
   "DOMAIN,itunes.apple.com,🇺🇸 手动-US",
   "DOMAIN,apps.apple.com,🇺🇸 手动-US",

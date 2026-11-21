@@ -8,9 +8,9 @@
 
 | 客户端 / 场景 | 文件 | 文件头标注版本 | Raw 下载 |
 | --- | --- | --- | --- |
-| FlClash | [override.js](clients/flclash/override.js) | v16.8 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/clients/flclash/override.js) |
-| Sparkle | [override.js](clients/sparkle/override.js) | v16.7 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/clients/sparkle/override.js) |
-| Clash Verge Rev | [override.js](clients/clash-verge-rev/override.js) | v16.6 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/clients/clash-verge-rev/override.js) |
+| FlClash | [override.js](clients/flclash/override.js) | v16.9 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/clients/flclash/override.js) |
+| Sparkle | [override.js](clients/sparkle/override.js) | v16.8 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/clients/sparkle/override.js) |
+| Clash Verge Rev | [override.js](clients/clash-verge-rev/override.js) | v16.7 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/clients/clash-verge-rev/override.js) |
 | WiFi Calling：英国全网版 | [uk.js](scenarios/wifi-calling/uk.js) | v16.1 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/scenarios/wifi-calling/uk.js) |
 | WiFi Calling：英国德国版 | [uk-de.js](scenarios/wifi-calling/uk-de.js) | v16.1 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/scenarios/wifi-calling/uk-de.js) |
 | WiFi Calling：英国德国美国统一版 | [uk-de-us.js](scenarios/wifi-calling/uk-de-us.js) | v16.9 | [Raw](https://raw.githubusercontent.com/alieismy/proxy-rules/main/scenarios/wifi-calling/uk-de-us.js) |
