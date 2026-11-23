@@ -837,6 +837,7 @@ const rules = [
   // 16. IP 类规则
   "RULE-SET,reject_ip,广告拦截,no-resolve",
   "IP-CIDR,160.79.104.0/21,AI,no-resolve",
+  "IP-CIDR,153.61.224.0/22,AI,no-resolve",
   // 注：全局 ipv6:false 时此条不生效；保留是为了未来开启 IPv6 时自动覆盖 Anthropic 的 v6 段
   "IP-CIDR6,2607:6bc0::/32,AI,no-resolve",
   "IP-ASN,399358,AI,no-resolve",
